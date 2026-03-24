@@ -50,34 +50,59 @@ dotnet run
 
 ```python
 import socket
+import struct
 
-s = socket.socket()
-s.connect(('192.168.1.100', 9999))
-s.send(b'sleep')
-print(s.recv(1024).decode())
-s.close()
+def send_command(host, port, command):
+    s = socket.socket()
+    s.connect((host, port))
+    s.send(command.encode())
+    
+    length_bytes = s.recv(4)
+    length = struct.unpack('<I', length_bytes)[0]
+    
+    data = b''
+    while len(data) < length:
+        data += s.recv(min(65536, length - len(data)))
+    
+    s.close()
+    return data.decode()
+
+response = send_command('192.168.1.100', 9999, 'status')
+print(response)
 ```
 
 截图处理：
 
 ```python
 import socket
+import struct
 import base64
 from PIL import Image
 import io
 
-s = socket.socket()
-s.connect(('192.168.1.100', 9999))
-s.send(b'screenshot')
+def send_command(host, port, command):
+    s = socket.socket()
+    s.connect((host, port))
+    s.send(command.encode())
+    
+    length_bytes = s.recv(4)
+    length = struct.unpack('<I', length_bytes)[0]
+    
+    data = b''
+    while len(data) < length:
+        data += s.recv(min(65536, length - len(data)))
+    
+    s.close()
+    return data.decode()
 
-response = s.recv(1024 * 1024).decode()
-s.close()
+response = send_command('192.168.1.100', 9999, 'screenshot')
 
 if response.startswith('SCREENSHOT:'):
     base64_data = response[11:]
     image_data = base64.b64decode(base64_data)
     image = Image.open(io.BytesIO(image_data))
     image.save('screenshot.png')
+    print('截图已保存')
 ```
 
 ## 设置
@@ -86,7 +111,7 @@ if response.startswith('SCREENSHOT:'):
 
 - 修改默认端口
 - 添加或删除可远程启动的应用程序
-- 查看指令使用说明
+- 测试指令功能
 
 ## 项目结构
 
@@ -103,7 +128,6 @@ SleepOnLan/
 
 - .NET 10
 - WPF
-- MaterialDesignThemes
 - Hardcodet.NotifyIcon.Wpf
 
 ## 许可证

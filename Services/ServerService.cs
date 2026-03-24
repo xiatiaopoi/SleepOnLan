@@ -62,7 +62,7 @@ namespace SleepOnLan.Services
 
         private async Task HandleClientAsync(TcpClient client)
         {
-            using (client)
+            try
             {
                 var stream = client.GetStream();
                 byte[] buffer = new byte[4096];
@@ -71,13 +71,34 @@ namespace SleepOnLan.Services
 
                 CommandReceived?.Invoke(cmd, client);
             }
+            catch
+            {
+                client.Close();
+            }
         }
 
         public static async Task SendResponseAsync(TcpClient client, string response)
         {
-            var stream = client.GetStream();
-            byte[] respBytes = Encoding.UTF8.GetBytes(response);
-            await stream.WriteAsync(respBytes, 0, respBytes.Length);
+            try
+            {
+                var stream = client.GetStream();
+                byte[] respBytes = Encoding.UTF8.GetBytes(response);
+                
+                byte[] lengthBytes = BitConverter.GetBytes(respBytes.Length);
+                await stream.WriteAsync(lengthBytes, 0, 4);
+                
+                int offset = 0;
+                while (offset < respBytes.Length)
+                {
+                    int chunkSize = Math.Min(65536, respBytes.Length - offset);
+                    await stream.WriteAsync(respBytes, offset, chunkSize);
+                    offset += chunkSize;
+                }
+            }
+            finally
+            {
+                client.Close();
+            }
         }
     }
 }

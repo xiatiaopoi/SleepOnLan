@@ -129,12 +129,39 @@ namespace SleepOnLan
                 byte[] data = Encoding.UTF8.GetBytes(command);
                 await stream.WriteAsync(data, 0, data.Length);
 
-                byte[] buffer = new byte[4096];
-                int read = await stream.ReadAsync(buffer, 0, buffer.Length);
-                string response = Encoding.UTF8.GetString(buffer, 0, read);
+                byte[] lengthBytes = new byte[4];
+                int readLen = await stream.ReadAsync(lengthBytes, 0, 4);
+                if (readLen < 4)
+                {
+                    TxtTestResult.Text += "错误: 无法读取响应长度\n";
+                    return;
+                }
+                
+                int totalLength = BitConverter.ToInt32(lengthBytes, 0);
+                
+                byte[] buffer = new byte[totalLength];
+                int totalRead = 0;
+                while (totalRead < totalLength)
+                {
+                    int read = await stream.ReadAsync(buffer, totalRead, totalLength - totalRead);
+                    if (read == 0) break;
+                    totalRead += read;
+                }
+                
+                string response = Encoding.UTF8.GetString(buffer, 0, totalRead);
 
-                TxtTestResult.Text += $"响应: {response}\n";
-                TxtTestResult.Text += "测试完成";
+                if (response.StartsWith("SCREENSHOT:"))
+                {
+                    string base64 = response.Substring(11);
+                    TxtTestResult.Text = $"截图成功，Base64 长度: {base64.Length} 字符\n";
+                    TxtTestResult.Text += $"完整 Base64:\n{base64}\n";
+                    TxtTestResult.Text += "测试完成";
+                }
+                else
+                {
+                    TxtTestResult.Text += $"响应: {response}\n";
+                    TxtTestResult.Text += "测试完成";
+                }
             }
             catch (Exception ex)
             {
@@ -161,6 +188,15 @@ namespace SleepOnLan
         {
             DialogResult = false;
             Close();
+        }
+
+        private void BtnCopyResult_Click(object sender, RoutedEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(TxtTestResult.Text))
+            {
+                System.Windows.Clipboard.SetText(TxtTestResult.Text);
+                System.Windows.MessageBox.Show("已复制到剪贴板", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
     }
 }

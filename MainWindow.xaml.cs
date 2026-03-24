@@ -32,7 +32,7 @@ namespace SleepOnLan
         {
             _serverService.LogReceived += msg => Log(msg);
             _serverService.StatusChanged += (running, port) => UpdateStatus(running, port);
-            _serverService.CommandReceived += async (cmd, client) => await HandleCommandAsync(cmd, client);
+            _serverService.CommandReceived += HandleCommandAsync;
         }
 
         private void LoadSettings()
@@ -138,7 +138,14 @@ namespace SleepOnLan
             });
         }
 
-        private void Log(string msg) => Dispatcher.Invoke(() => TxtLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {msg}\n"));
+        private void Log(string msg)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                TxtLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {msg}\n");
+                TxtLog.ScrollToEnd();
+            });
+        }
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {

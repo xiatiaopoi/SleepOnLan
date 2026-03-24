@@ -139,6 +139,13 @@ namespace SleepOnLan
                 
                 int totalLength = BitConverter.ToInt32(lengthBytes, 0);
                 
+                const int MaxResponseSize = 10 * 1024 * 1024;
+                if (totalLength <= 0 || totalLength > MaxResponseSize)
+                {
+                    TxtTestResult.Text += $"错误: 响应长度无效 ({totalLength} 字节)\n";
+                    return;
+                }
+                
                 byte[] buffer = new byte[totalLength];
                 int totalRead = 0;
                 while (totalRead < totalLength)

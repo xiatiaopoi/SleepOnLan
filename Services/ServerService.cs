@@ -16,7 +16,7 @@ namespace SleepOnLan.Services
         public bool IsRunning => _isRunning;
         
         public event Action<string>? LogReceived;
-        public event Action<string, TcpClient>? CommandReceived;
+        public event Func<string, TcpClient, Task>? CommandReceived;
         public event Action<bool, int>? StatusChanged;
 
         public async Task StartAsync(int port)
@@ -69,11 +69,21 @@ namespace SleepOnLan.Services
                 int read = await stream.ReadAsync(buffer, 0, buffer.Length);
                 string cmd = Encoding.UTF8.GetString(buffer, 0, read).Trim();
 
-                CommandReceived?.Invoke(cmd, client);
+                if (CommandReceived != null)
+                {
+                    foreach (var handler in CommandReceived.GetInvocationList())
+                    {
+                        await ((Func<string, TcpClient, Task>)handler)(cmd, client);
+                    }
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                client.Close();
+                LogReceived?.Invoke($"客户端处理错误: {ex.Message}");
+            }
+            finally
+            {
+                client.Dispose();
             }
         }
 
@@ -95,10 +105,8 @@ namespace SleepOnLan.Services
                     offset += chunkSize;
                 }
             }
-            finally
-            {
-                client.Close();
-            }
+            catch (ObjectDisposedException) { }
+            catch (SocketException) { }
         }
     }
 }
